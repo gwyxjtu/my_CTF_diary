@@ -112,3 +112,73 @@ XFF改成127.0.0.1之后，GET进来三个参数。这里调用了preg_replace�
 
 
 拿到flag，安心复习。
+
+
+
+## RCTF-2015 bug
+打开题目，提示你please login
+
+一般可以注册的就直接注册，登陆进去。
+
+![](./img/9.png)
+
+
+退出后去主页修改密码。在第二步的时候抓包，将用户名改成admin.
+
+
+![](./img/10.png)
+
+本来这里是你自己注册的用户名。改成admin。
+
+完成后登陆admin,点击message发现ip不允许，这里想到了之前提到的XFF。抓包改包。
+
+![](./img/11.png)
+
+进入网页发现下面提示到do，可以想到是上传。将get参数加上do=upload。
+
+
+![](./img/12.png)
+
+发现上传界面。这里用到了之前练习过的上传绕过，首先尝试了一些文件名或者数据格式的修改，发现均不通过。只能上图片木马。
+在文件末尾加上
+
+```
+<script language="php">phpinfo()</script>
+```
+
+同时将文件名后缀改为php5。拿到flag。（这里只要把php的script传上去就行了，也可以是其他的木马）
+
+![](./img/13.png)
+
+
+## i-got-id-200
+### csaw-ctf-2016-quals
+打开题目发现有三个连接。file是上传，猜测存在上传漏洞，之后是参考大佬的WP，贴过来。
+
+其中点击Files会跳转到/cgi-bin/file.pl文件中进行执行。这里可以上传任何一个文件，然后会在下方打印出内容。那么我们猜测后台逻辑大概是这样的。
+
+
+
+	perl use strict; use warnings; use CGI;
+	
+	my $cgi= CGI->new; if ( $cgi->upload( 'file' ) ) { my $file= $cgi->param( 'file' ); while ( <$file> ) { print "$_"; } } 
+
+
+
+那么，这里就存在一个可以利用的地方，param()函数会返回一个列表的文件但是只有第一个文件会被放入到下面的file变量中。而对于下面的读文件逻辑来说，如果我们传入一个ARGV的文件，那么Perl会将传入的参数作为文件名读出来。这样，我们的利用方法就出现了：在正常的上传文件前面加上一个文件上传项ARGV，然后在URL中传入文件路径参数，这样就可以读取任意文件了。
+
+	/cgi-bin/file.pl?/etc/passwd
+
+将参数写成这个，读取到了系统的文件。/etc/passwd是用来存储登陆用户信息的,
+
+![](./img/14.png)
+
+这里再次使用bash来读取文件目录。payload：
+
+	 /cgi-bin/file.pl?/bin/bash%20-c%20ls${IFS}/| 
+
+![](./img/15.png)
+
+最后读取flag文件，拿到flag.
+
+![](./img/16.png)
